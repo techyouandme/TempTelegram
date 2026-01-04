@@ -18,12 +18,38 @@ app.use(helmet());
 app.disable('x-powered-by'); // Helmet does this, but being explicit is fine
 
 // Strict CORS
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-app.use(cors({ origin: CLIENT_URL }));
+// Strict CORS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://tempu.netlify.app",
+  process.env.CLIENT_URL
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || !process.env.NODE_ENV) {
+      // In dev, sometimes origin might be different? 
+      // safest to just check list. 
+      // Actually, let's just pass the array to cors directly if we want simple, 
+      // but sending an array to `origin` works too. 
+      return callback(null, true);
+    } else {
+      // Check if it matches allowedOrigins
+      // Simple array check
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      else return callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
+// Actually express cors supports array directly
+app.use(cors({ origin: allowedOrigins }));
 
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: allowedOrigins,
     methods: ["GET", "POST"]
   }
 });
